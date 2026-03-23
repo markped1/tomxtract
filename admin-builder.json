@@ -1,0 +1,26 @@
+{
+  "appId": "com.tomxtractor.49ja.keygen",
+  "productName": "TomXtractor 49ja Keygen",
+  "directories": {
+    "output": "admin-release"
+  },
+  "files": [
+    "dist/admin/**/*",
+    "resources/**/*",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "dist/admin/main.js"
+  },
+  "win": {
+    "target": ["nsis"],
+    "icon": "resources/icon.ico",
+    "artifactName": "TomXtractor_49ja_Keygen_Setup.exe"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "resources/icon.ico",
+    "uninstallerIcon": "resources/icon.ico"
+  }
+}
