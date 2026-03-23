@@ -1,22 +1,24 @@
-import React, { useState } from 'react';
-import { Key, Copy, Check, Shield } from 'lucide-react';
-
-const ENC_KEY = 'TX49JA-ENCRYPTION-KEY-2024-SECURE';
-const LICENSE_SECRET = 'TX49JA-LICENSE-SECRET';
+import React, { useState, useEffect } from 'react';
+import { Key, Copy, Check, Shield, Cloud, RefreshCw } from 'lucide-react';
 
 export default function KeygenUI() {
   const [machineId, setMachineId] = useState('');
   const [licenseKey, setLicenseKey] = useState('');
   const [copied, setCopied] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('');
+
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (api?.getMachineId) {
+      api.getMachineId().then(setMachineId);
+    }
+  }, []);
 
   const generateKey = () => {
     if (!machineId.trim()) return;
 
-    // We need to use crypto here. Since this runs in the renderer, 
-    // we'll use the window.api if available or a web-safe version.
-    // For now, let's assume we'll use IPC to generate it securely in the main process
-    // or use a pre-shared logic if we can.
-    window.electronAPI.generateKey(machineId).then((key: string) => {
+    (window as any).electronAPI.generateKey(machineId).then((key: string) => {
       setLicenseKey(key);
     });
   };
@@ -25,6 +27,35 @@ export default function KeygenUI() {
     navigator.clipboard.writeText(licenseKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const generateRandomKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const segment = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    return `${segment()}-${segment()}-${segment()}-${segment()}`;
+  };
+
+  const syncNewKeys = async () => {
+    setSyncing(true);
+    setSyncStatus('Generating keys...');
+    
+    // Generate 5 random keys for this batch
+    const newKeys = Array.from({ length: 5 }, generateRandomKey);
+    
+    try {
+      const result = await (window as any).electronAPI.syncKeys(newKeys);
+      if (result.success) {
+        setSyncStatus('Keys synced to Firebase!');
+        setLicenseKey(newKeys[0]); // Show the first one
+      } else {
+        setSyncStatus(`Error: ${result.message}`);
+      }
+    } catch (err) {
+      setSyncStatus('Failed to connect to Firebase.');
+    }
+    
+    setSyncing(false);
+    setTimeout(() => setSyncStatus(''), 5000);
   };
 
   return (
@@ -56,14 +87,37 @@ export default function KeygenUI() {
             </div>
           </div>
 
-          <button
-            onClick={generateKey}
-            disabled={!machineId.trim()}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 group"
-          >
-            <Key className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            Generate License Key
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={generateKey}
+              disabled={!machineId.trim()}
+              className="flex-1 bg-[#1e253a] hover:bg-[#252d45] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-xl border border-white/5 transition-all flex items-center justify-center gap-2 group"
+              title="Generate for specific Machine ID"
+            >
+              <Key className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              Local
+            </button>
+
+            <button
+              onClick={syncNewKeys}
+              disabled={syncing}
+              className="flex-[2] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2 group"
+              title="Generate & Sync 5 keys to Firebase"
+            >
+              {syncing ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <Cloud className="w-5 h-5 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+              )}
+              Generate & Sync
+            </button>
+          </div>
+
+          {syncStatus && (
+            <p className={`text-center text-xs font-semibold ${syncStatus.includes('Error') || syncStatus.includes('Failed') ? 'text-red-400' : 'text-blue-400'} animate-pulse`}>
+              {syncStatus}
+            </p>
+          )}
 
           {licenseKey && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-500">

@@ -1,6 +1,23 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { generateMachineId } from '../main/license/fingerprint';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, set } from 'firebase/database';
+import { firebaseConfig } from '../main/license/firebase-config';
+
+// Initialize Firebase (only if config is valid)
+const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db: any = null;
+if (isFirebaseConfigured) {
+  try {
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getDatabase(firebaseApp, firebaseConfig.databaseURL);
+    console.log('Firebase initialized with URL:', firebaseConfig.databaseURL);
+  } catch (err) {
+    console.error('Firebase initialization failed:', err);
+  }
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -24,7 +41,7 @@ function createWindow() {
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5174');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../admin/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../index.html'));
   }
 
   mainWindow.on('closed', () => {
@@ -47,6 +64,39 @@ ipcMain.handle('generate-key', async (event, machineId: string) => {
   } catch (err) {
     console.error('Key generation error:', err);
     return 'ERROR';
+  }
+});
+
+ipcMain.handle('get-machine-id', async () => {
+  return await generateMachineId();
+});
+
+ipcMain.handle('sync-keys', async (event, keys: string[]) => {
+  if (!isFirebaseConfigured || !db) return { success: false, message: 'Firebase not configured' };
+  
+  try {
+    // Add a simple timeout promise
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout. Please check your databaseURL.')), 10000)
+    );
+
+    const syncTask = (async () => {
+      if (!db) throw new Error('Database instance is null');
+      
+      for (const key of keys) {
+        console.log(`Syncing key: ${key}`);
+        await set(ref(db, `licenses/${key}`), {
+          status: 'available',
+          machineId: '',
+          createdAt: new Date().toISOString()
+        });
+      }
+      return { success: true };
+    })();
+
+    return await Promise.race([syncTask, timeout]) as { success: boolean, message?: string };
+  } catch (err: any) {
+    return { success: false, message: err.message };
   }
 });
 

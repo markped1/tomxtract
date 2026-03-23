@@ -23,6 +23,7 @@
     "crypto-js": "^4.2.0",
     "exceljs": "^4.4.0",
     "fast-csv": "^5.0.2",
+    "firebase": "^12.11.0",
     "nodemailer": "^8.0.2",
     "pdf-parse": "^2.4.5",
     "puppeteer-core": "^23.8.0",

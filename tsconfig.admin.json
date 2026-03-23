@@ -9,7 +9,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "outDir": "dist/admin",
-    "rootDir": "src/admin"
+    "rootDir": "src"
   },
-  "include": ["src/admin/main.ts", "src/admin/admin-preload.ts"]
+  "include": ["src/admin/main.ts", "src/admin/admin-preload.ts", "src/main/license/fingerprint.ts"]
 }

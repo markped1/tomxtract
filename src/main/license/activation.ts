@@ -2,6 +2,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { generateMachineId } from './fingerprint';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, get, set } from 'firebase/database';
+import { firebaseConfig } from './firebase-config';
+
+// Initialize Firebase (only if config is valid)
+const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db: any = null;
+if (isFirebaseConfigured) {
+  const app = initializeApp(firebaseConfig);
+  db = getDatabase(app);
+}
 
 const TRIAL_DIR = 'C:\\ProgramData\\TomXtractor';
 const LICENSE_FILE = path.join(TRIAL_DIR, 'license.dat');
@@ -26,21 +37,46 @@ export async function activateLicense(licenseKey: string): Promise<{ success: bo
 
     const machineId = await generateMachineId();
 
-    // Verify key against machine ID using HMAC
-    const machineHash = crypto.createHmac('sha256', 'TX49JA-LICENSE-SECRET')
-      .update(machineId)
-      .digest('hex')
-      .substring(0, 16)
-      .toUpperCase();
+    // Use Firebase for activation if configured
+    if (isFirebaseConfigured && db) {
+      const licenseRef = ref(db, `licenses/${licenseKey.toUpperCase()}`);
+      const snapshot = await get(licenseRef);
 
-    // Format the hash as XXXX-XXXX-XXXX-XXXX
-    const expectedKey = `${machineHash.substring(0, 4)}-${machineHash.substring(4, 8)}-${machineHash.substring(8, 12)}-${machineHash.substring(12, 16)}`;
-    
-    if (licenseKey.toUpperCase() !== expectedKey) {
-      return { success: false, message: 'Invalid license key for this machine.' };
+      if (!snapshot.exists()) {
+        return { success: false, message: 'Invalid license key. Please check your key or contact support.' };
+      }
+
+      const data = snapshot.val();
+      
+      if (data.machineId && data.machineId !== machineId) {
+        return { success: false, message: 'This license key is already locked to another machine.' };
+      }
+
+      // If it's a new activation, lock it to this machine
+      if (!data.machineId || data.status === 'available') {
+        await set(licenseRef, {
+          ...data,
+          machineId,
+          status: 'active',
+          activatedAt: new Date().toISOString()
+        });
+      }
+    } else {
+      // Fallback to local offline verification if Firebase is not configured
+      const machineHash = crypto.createHmac('sha256', 'TX49JA-LICENSE-SECRET')
+        .update(machineId)
+        .digest('hex')
+        .substring(0, 16)
+        .toUpperCase();
+
+      const expectedKey = `${machineHash.substring(0, 4)}-${machineHash.substring(4, 8)}-${machineHash.substring(8, 12)}-${machineHash.substring(12, 16)}`;
+      
+      if (licenseKey.toUpperCase() !== expectedKey) {
+        return { success: false, message: 'Invalid license key for this machine.' };
+      }
     }
 
-    // Store activation
+    // Store activation locally
     if (!fs.existsSync(TRIAL_DIR)) {
       fs.mkdirSync(TRIAL_DIR, { recursive: true });
     }
