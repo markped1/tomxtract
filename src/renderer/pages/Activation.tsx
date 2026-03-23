@@ -55,20 +55,11 @@ export const Activation: React.FC<ActivationProps> = ({ onActivated }) => {
             <p className="text-sm text-gray-500 mt-1">v1.0</p>
           </div>
 
-          {/* Trial expired message */}
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
-            <p className="text-sm text-red-400 text-center">
-              Your 24-hour trial has expired. Please enter a license key to continue.
+          {/* Trial info message */}
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-5 mb-8">
+            <p className="text-sm text-blue-400 text-center leading-relaxed">
+              To continue using all features of <strong>TomXtractor 49ja</strong>, please enter your valid license key below.
             </p>
-          </div>
-
-          {/* Machine ID */}
-          <div className="mb-6">
-            <label className="text-xs text-gray-500 block mb-1">Machine ID</label>
-            <div className="bg-cyber-bg border border-gray-700 rounded-lg px-4 py-2.5 text-sm font-mono text-cyber-accent select-all cursor-text">
-              {machineId}
-            </div>
-            <p className="text-xs text-gray-600 mt-1">Send this ID to the developer to receive your key.</p>
           </div>
 
           {/* License input */}
