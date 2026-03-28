@@ -67,7 +67,7 @@ export const Mailer: React.FC = () => {
             else if (data.type === 'stopped') { setIsRunning(false); setStatus('Stopped'); }
             else if (data.type === 'sent') { setStatus(`Sent to ${data.recipient}`); loadData(); }
             else if (data.type === 'waiting') { setStatus('Waiting (1 min)...'); }
-            else if (data.type === 'error') { setStatus(`Error: ${data.message || 'Unknown error'}`); }
+            else if (data.type === 'error') { setStatus(`Error: ${data.message || 'Unknown error'}`); loadData(); }
           });
         }
       } catch (err: any) {
@@ -178,6 +178,15 @@ export const Mailer: React.FC = () => {
     if (confirm('Are you sure you want to clear all sender memory?')) {
       if (window.electronAPI) {
         await window.electronAPI.clearSmtps();
+        loadData();
+      }
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (confirm('Are you sure you want to clear all delivery logs?')) {
+      if (window.electronAPI) {
+        await window.electronAPI.clearMailingLogs();
         loadData();
       }
     }
@@ -420,8 +429,17 @@ export const Mailer: React.FC = () => {
           {/* Mailing Status / Logs */}
           <div className="bg-cyber-bg/50 border border-gray-800 rounded-xl overflow-hidden min-h-[300px]">
             <div className="px-4 py-3 border-b border-gray-800 bg-black/20 flex justify-between items-center">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live Delivery Manifest</h3>
-              <span className="text-[10px] text-gray-500 uppercase tracking-tighter">Last 500 Events</span>
+              <div className="flex items-center gap-3">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live Delivery Manifest</h3>
+                <span className="text-[10px] text-gray-500 uppercase tracking-tighter hidden sm:inline">Last 500 Events</span>
+              </div>
+              <button 
+                onClick={handleClearLogs}
+                className="px-2 py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded text-[10px] hover:bg-red-500/20 transition-all flex items-center gap-1"
+                title="Clear all delivery logs"
+              >
+                <Trash2 size={10} /> Clear Logs
+              </button>
             </div>
             <div className="overflow-x-auto">
                <table className="w-full text-left text-sm">

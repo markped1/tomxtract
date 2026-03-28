@@ -106,9 +106,11 @@ export class EmailMailer extends EventEmitter {
       },
       tls: {
         rejectUnauthorized: false,
-        minVersion: 'TLSv1',
-        ciphers: 'DEFAULT@SECLEVEL=0'
-      }
+        minVersion: 'TLSv1'
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     };
 
     if (isGmail) {
@@ -152,8 +154,7 @@ export class EmailMailer extends EventEmitter {
       },
       tls: {
         rejectUnauthorized: false,
-        minVersion: 'TLSv1',
-        ciphers: 'DEFAULT@SECLEVEL=0'
+        minVersion: 'TLSv1'
       },
       connectionTimeout: 10000
     };

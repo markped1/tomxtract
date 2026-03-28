@@ -1,6 +1,6 @@
 {
   "name": "tomxtractor-49ja",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "TomXtractor 49ja v1.0 - Professional Email Extraction Tool",
   "main": "dist/main/main.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "axios": "^1.13.6",
     "chromium": "^3.0.3",
     "crypto-js": "^4.2.0",
+    "electron-updater": "^6.8.3",
     "exceljs": "^4.4.0",
     "fast-csv": "^5.0.2",
     "firebase": "^12.11.0",
@@ -56,6 +57,13 @@
   "build": {
     "appId": "com.tomxtractor.49ja",
     "productName": "TomXtractor 49ja",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "markped1",
+        "repo": "tomxtract"
+      }
+    ],
     "files": [
       "dist/**/*",
       "resources/**/*",
@@ -79,7 +87,8 @@
           ]
         }
       ],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.ico",
+      "publisherName": "TomXtractor"
     },
     "nsis": {
       "oneClick": false,

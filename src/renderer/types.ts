@@ -40,6 +40,7 @@ declare global {
       addSmtp: (smtp: any) => Promise<void>;
       deleteSmtp: (id: number) => Promise<void>;
       clearSmtps: () => Promise<void>;
+      clearMailingLogs: () => Promise<void>;
       testSmtp: (smtp: any) => Promise<{ success: boolean; error?: string }>;
       getMailingLogs: () => Promise<any[]>;
       startMailing: (config: any) => Promise<void>;

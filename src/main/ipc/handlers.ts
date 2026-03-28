@@ -192,6 +192,7 @@ export function registerIpcHandlers() {
   ipcMain.handle('add-smtp', async (_event, smtp) => db.addSmtp(smtp));
   ipcMain.handle('delete-smtp', async (_event, id) => db.deleteSmtp(id));
   ipcMain.handle('clear-smtps', async () => db.clearSmtps());
+  ipcMain.handle('clear-mailing-logs', async () => db.clearMailingLogs());
   ipcMain.handle('test-smtp', async (_event, smtp) => emailMailer.testSmtp(smtp));
   ipcMain.handle('get-mailing-logs', async () => db.getMailingLogs());
   ipcMain.handle('get-mailing-settings', async () => db.getMailingSettings());

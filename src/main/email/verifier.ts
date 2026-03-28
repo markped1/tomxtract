@@ -2,16 +2,43 @@ import * as dns from 'dns';
 import * as net from 'net';
 import { promisify } from 'util';
 
-const resolveMx = promisify(dns.resolveMx);
+const resolver = new dns.promises.Resolver();
+resolver.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+
+async function robustResolveMx(domain: string, retries = 3): Promise<dns.MxRecord[]> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      // Use a custom timeout for the DNS query
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('DNS Timeout')), 5000)
+      );
+      
+      const records = await Promise.race([
+        resolver.resolveMx(domain),
+        timeoutPromise
+      ]);
+      return records;
+    } catch (err: any) {
+      if (i === retries - 1) throw err;
+      // Wait a bit before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  return [];
+}
 
 export async function verifyEmail(email: string): Promise<{ email: string; valid: boolean; status: string; mxRecords?: string[] }> {
   try {
     const domain = email.split('@')[1];
     if (!domain) return { email, valid: false, status: 'Invalid domain' };
 
-    const records = await resolveMx(domain);
+    const records = await robustResolveMx(domain).catch(err => {
+      console.error(`DNS Error for ${domain}:`, err.message);
+      return [];
+    });
+    
     if (!records || records.length === 0) {
-      return { email, valid: false, status: 'No MX records' };
+      return { email, valid: false, status: 'No MX records or DNS Timeout' };
     }
 
     const sortedMx = records.sort((a, b) => a.priority - b.priority).map((r) => r.exchange);

@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMailingSettings: () => ipcRenderer.invoke('get-mailing-settings'),
   saveMailingSetting: (data: any) => ipcRenderer.invoke('save-mailing-setting', data),
   clearSmtps: () => ipcRenderer.invoke('clear-smtps'),
+  clearMailingLogs: () => ipcRenderer.invoke('clear-mailing-logs'),
   importEmailsFromFile: () => ipcRenderer.invoke('import-emails-from-file'),
   startMailing: (config: any) => ipcRenderer.invoke('start-mailing', config),
   stopMailing: () => ipcRenderer.invoke('stop-mailing'),

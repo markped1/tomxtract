@@ -340,7 +340,13 @@ export function deleteSmtp(id: number) {
 
 export function addMailingLog(log: any) {
   run('INSERT INTO mailing_logs (smtp_id, recipient, subject, status, error) VALUES (?, ?, ?, ?, ?)',
-      [log.smtpId, log.recipient, log.subject, log.status, log.error]);
+      [
+        log.smtpId ?? null, 
+        log.recipient ?? '', 
+        log.subject ?? '', 
+        log.status ?? '', 
+        log.error ?? null
+      ]);
 }
 
 export function getMailingLogs(): any[] {
@@ -349,6 +355,11 @@ export function getMailingLogs(): any[] {
 
 export function clearSmtps() {
   run('DELETE FROM smtps');
+  forceSave();
+}
+
+export function clearMailingLogs() {
+  run('DELETE FROM mailing_logs');
   forceSave();
 }
 

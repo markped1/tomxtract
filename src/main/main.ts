@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
+import { autoUpdater } from 'electron-updater';
 import { registerIpcHandlers } from './ipc/handlers';
 import { initDatabase, forceSave } from './db/database';
 import { checkTrialStatus } from './license/trial';
@@ -39,6 +40,11 @@ app.whenReady().then(async () => {
   await initDatabase();
   registerIpcHandlers();
   createWindow();
+
+  // Check for updates automatically in production
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify();
+  }
 
   // Window controls
   ipcMain.on('window-minimize', () => mainWindow?.minimize());
