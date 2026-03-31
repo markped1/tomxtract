@@ -57,19 +57,47 @@ export async function activateLicense(licenseKey: string): Promise<{ success: bo
 
       // Lock key to this machine on first activation
       if (!data.machine_id || data.status === 'available') {
+        const updates: any = {
+          machine_id: machineId,
+          status: 'active',
+          activated_at: new Date().toISOString(),
+        };
+        
         const { error: updateError } = await supabase
           .from('licenses')
-          .update({
-            machine_id: machineId,
-            status: 'active',
-            activated_at: new Date().toISOString(),
-          })
+          .update(updates)
           .eq('key', key);
 
         if (updateError) {
           return { success: false, message: 'Failed to activate license. Please try again.' };
         }
       }
+
+      // Calculate expiration if demo
+      let expiresAt: string | null = null;
+      if (data.is_demo && data.duration_days > 0) {
+        const activationDate = data.activated_at ? new Date(data.activated_at) : new Date();
+        const expiryDate = new Date(activationDate.getTime() + data.duration_days * 24 * 60 * 60 * 1000);
+        expiresAt = expiryDate.toISOString();
+      }
+
+      // Store activation locally
+      if (!fs.existsSync(TRIAL_DIR)) fs.mkdirSync(TRIAL_DIR, { recursive: true });
+
+      const licenseData = { 
+        activated: true, 
+        key, 
+        machineId, 
+        activatedAt: new Date().toISOString(),
+        isDemo: data.is_demo || false,
+        expiresAt
+      };
+
+      fs.writeFileSync(
+        LICENSE_FILE,
+        encrypt(JSON.stringify(licenseData)),
+        'utf-8'
+      );
     } else {
       // Offline fallback
       const machineHash = crypto
@@ -84,16 +112,15 @@ export async function activateLicense(licenseKey: string): Promise<{ success: bo
       if (key !== expectedKey) {
         return { success: false, message: 'Invalid license key for this machine.' };
       }
+
+      // Store offline activation
+      if (!fs.existsSync(TRIAL_DIR)) fs.mkdirSync(TRIAL_DIR, { recursive: true });
+      fs.writeFileSync(
+        LICENSE_FILE,
+        encrypt(JSON.stringify({ activated: true, key, machineId, activatedAt: new Date().toISOString() })),
+        'utf-8'
+      );
     }
-
-    // Store activation locally
-    if (!fs.existsSync(TRIAL_DIR)) fs.mkdirSync(TRIAL_DIR, { recursive: true });
-
-    fs.writeFileSync(
-      LICENSE_FILE,
-      encrypt(JSON.stringify({ activated: true, key, machineId, activatedAt: new Date().toISOString() })),
-      'utf-8'
-    );
 
     return { success: true, message: 'License activated successfully!' };
   } catch (err: any) {

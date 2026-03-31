@@ -58,7 +58,9 @@ ipcMain.handle('generate-key', async (_event, machineId: string) => {
 ipcMain.handle('get-machine-id', async () => generateMachineId());
 
 // Generate N random keys and push to Supabase
-ipcMain.handle('sync-keys', async (_event, count: number = 5) => {
+ipcMain.handle('sync-keys', async (_event, options: { count: number, isDemo: boolean, durationDays: number }) => {
+  const { count = 5, isDemo = false, durationDays = 0 } = options || {};
+  
   if (!isSupabaseConfigured || !supabase) {
     return { success: false, message: 'Supabase not configured. Update supabase-config.ts.' };
   }
@@ -71,6 +73,8 @@ ipcMain.handle('sync-keys', async (_event, count: number = 5) => {
     key,
     status: 'available',
     machine_id: null,
+    is_demo: isDemo,
+    duration_days: durationDays,
     created_at: new Date().toISOString(),
     activated_at: null,
   }));

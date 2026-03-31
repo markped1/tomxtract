@@ -58,6 +58,12 @@ function migrateDatabase() {
     run("ALTER TABLE emails ADD COLUMN name TEXT");
     forceSave();
   }
+
+  const hasReason = tableInfo.some(col => col.name === 'status_reason');
+  if (!hasReason) {
+    run("ALTER TABLE emails ADD COLUMN status_reason TEXT");
+    forceSave();
+  }
 }
 
 function saveDb(force = false) {
@@ -101,6 +107,7 @@ function createTables() {
       phone TEXT,
       name TEXT,
       status TEXT DEFAULT 'pending',
+      status_reason TEXT,
       found_at TEXT DEFAULT (datetime('now'))
     )
   `);
@@ -213,7 +220,7 @@ export function addLog(message: string, level: string = 'info') {
 }
 
 export function getEmails(options: { limit?: number, offset?: number, search?: string, status?: string } = {}): any[] {
-  let sql = 'SELECT id, email, domain, source_page as sourcePage, phone, name, status, found_at as foundAt FROM emails';
+  let sql = 'SELECT id, email, domain, source_page as sourcePage, phone, name, status, status_reason as statusReason, found_at as foundAt FROM emails';
   const params: any[] = [];
   const conditions: string[] = [];
 
@@ -221,9 +228,9 @@ export function getEmails(options: { limit?: number, offset?: number, search?: s
     if (options.status === 'Active') {
       conditions.push('status = ?');
       params.push('Active');
-    } else if (options.status === 'Rejected') {
-      conditions.push('(status = ? OR status = ?)');
-      params.push('Rejected', 'invalid');
+    } else if (options.status === 'Inactive') {
+      conditions.push('status = ?');
+      params.push('Inactive');
     } else if (options.status === 'Pending') {
       conditions.push('(status = ? OR status IS NULL OR status = ?)');
       params.push('pending', '');
@@ -263,9 +270,9 @@ export function getEmailCount(options: { search?: string, status?: string } = {}
     if (options.status === 'Active') {
       conditions.push('status = ?');
       params.push('Active');
-    } else if (options.status === 'Rejected') {
-      conditions.push('(status = ? OR status = ?)');
-      params.push('Rejected', 'invalid');
+    } else if (options.status === 'Inactive') {
+      conditions.push('status = ?');
+      params.push('Inactive');
     } else if (options.status === 'Pending') {
       conditions.push('(status = ? OR status IS NULL OR status = ?)');
       params.push('pending', '');
@@ -287,8 +294,8 @@ export function getEmailCount(options: { search?: string, status?: string } = {}
 }
 
 export function deleteEmailsByStatus(status: string) {
-  if (status === 'Rejected') {
-    run('DELETE FROM emails WHERE status = ? OR status = ?', ['Rejected', 'invalid']);
+  if (status === 'Inactive') {
+    run('DELETE FROM emails WHERE status = ?', ['Inactive']);
   } else {
     run('DELETE FROM emails WHERE status = ?', [status]);
   }
@@ -329,15 +336,15 @@ export function resetDatabase() {
 }
 export function deleteEmail(id: number) { run('DELETE FROM emails WHERE id = ?', [id]); }
 
-export function updateEmailStatus(email: string, status: string) {
-  run('UPDATE emails SET status = ? WHERE email = ?', [status, email]);
+export function updateEmailStatus(email: string, status: string, reason?: string) {
+  run('UPDATE emails SET status = ?, status_reason = ? WHERE email = ?', [status, reason || null, email]);
 }
 
 export function getAllEmailsForExport(status?: string): any[] {
   if (status) {
-    return query('SELECT email, domain, source_page as sourcePage, phone, name, status, found_at as foundAt FROM emails WHERE status = ? ORDER BY id', [status]);
+    return query('SELECT email, domain, source_page as sourcePage, phone, name, status, status_reason as statusReason, found_at as foundAt FROM emails WHERE status = ? ORDER BY id', [status]);
   }
-  return query('SELECT email, domain, source_page as sourcePage, phone, name, status, found_at as foundAt FROM emails ORDER BY id');
+  return query('SELECT email, domain, source_page as sourcePage, phone, name, status, status_reason as statusReason, found_at as foundAt FROM emails ORDER BY id');
 }
 
 // SMTP Management

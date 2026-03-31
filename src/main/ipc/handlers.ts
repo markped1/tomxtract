@@ -71,7 +71,7 @@ export function registerIpcHandlers() {
   ipcMain.handle('verify-emails', async (_event, emails: string[]) => {
     return Promise.all(emails.map(async (email) => {
       const res = await verifyEmail(email);
-      db.updateEmailStatus(email, res.status);
+      db.updateEmailStatus(email, res.status, res.reason);
       return res;
     }));
   });

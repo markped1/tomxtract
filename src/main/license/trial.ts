@@ -48,6 +48,13 @@ export function getTrialInfo(): { licensed: boolean; trial: boolean; trialExpire
       const decrypted = decrypt(data);
       const parsed = JSON.parse(decrypted);
       if (parsed.activated) {
+        // Check for Demo Expiration
+        if (parsed.expiresAt) {
+          const expiryDate = new Date(parsed.expiresAt);
+          if (Date.now() > expiryDate.getTime()) {
+            return { licensed: false, trial: false, trialExpired: true, hoursRemaining: 0 };
+          }
+        }
         return { licensed: true, trial: false, trialExpired: false, hoursRemaining: 0 };
       }
     } catch {}

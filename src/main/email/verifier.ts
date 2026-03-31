@@ -35,14 +35,10 @@ const SMTP_BLOCKING_PROVIDERS = new Set([
   'yandex.ru','mail.ru','gmx.com','gmx.net','gmx.de',
 ]);
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type SmtpResult = 'valid' | 'invalid' | 'catch-all' | 'blocked' | 'timeout' | 'error';
-
-interface SmtpCheckResult {
-  result: SmtpResult;
-  code?: number;
-  message?: string;
-}
+// ─── Status labels ────────────────────────────────────────────────────────────
+// Valid   = confirmed or provider-verified mailbox
+// Invalid = rejected mailbox or no mail server
+// Unknown = can't confirm either way (catch-all, ports blocked)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 async function resolveMx(domain: string, retries = 3): Promise<dns.MxRecord[]> {
@@ -158,28 +154,37 @@ async function isCatchAll(mxHost: string, domain: string): Promise<boolean> {
   return result !== null && result.code === 250;
 }
 
+function sanitizeEmail(email: string): string {
+  // Remove common scraping artifacts like ".Read", ".Click", ".View", ".More" from the end
+  return email
+    .replace(/\.(read|click|view|more|summary|details|link|open|apply)$/i, '')
+    .trim();
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 export async function verifyEmail(email: string): Promise<{
   email: string;
   valid: boolean;
   status: string;
+  reason?: string;
   mxRecords?: string[];
 }> {
-  email = email.trim().toLowerCase();
+  const originalEmail = email.trim();
+  email = sanitizeEmail(originalEmail).toLowerCase();
 
   // 1. Syntax check
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { email, valid: false, status: 'Invalid Syntax' };
+    return { email, valid: false, status: 'Inactive', reason: 'Invalid Syntax' };
   }
 
   const [localPart, domain] = email.split('@');
 
-  // 2. Disposable domain check
+  // 2. Disposable domain
   if (DISPOSABLE_DOMAINS.has(domain)) {
-    return { email, valid: false, status: 'Disposable' };
+    return { email, valid: false, status: 'Inactive', reason: 'Disposable Domain' };
   }
 
-  // 3. Role-based check (valid but risky — mark separately)
+  // 3. Role-based flag
   const isRole = ROLE_PREFIXES.has(localPart.split(/[.+_-]/)[0]);
 
   // 4. MX record lookup
@@ -187,63 +192,50 @@ export async function verifyEmail(email: string): Promise<{
   try {
     const records = await resolveMx(domain);
     if (!records || records.length === 0) {
-      return { email, valid: false, status: 'No MX Records' };
+      return { email, valid: false, status: 'Inactive', reason: 'DNS Error' };
     }
     mxRecords = records.sort((a, b) => a.priority - b.priority).map(r => r.exchange);
   } catch {
-    return { email, valid: false, status: 'DNS Error' };
+    return { email, valid: false, status: 'Inactive', reason: 'DNS Error' };
   }
 
-  // 5. SPF / DMARC check (domain legitimacy signal)
+  // 5. SPF / DMARC signals
   const txtRecords = await resolveTxt(domain);
   const spf = hasSPF(txtRecords);
   const dmarc = hasDMARC(await resolveTxt(`_dmarc.${domain}`).catch(() => []));
 
-  // 6. Known SMTP-blocking provider — skip SMTP, return best-effort result
+  // 6. Known providers that block SMTP probing (Gmail, Yahoo, Outlook, etc.)
   if (SMTP_BLOCKING_PROVIDERS.has(domain)) {
-    const status = isRole ? 'Role-based' : (spf ? 'Valid (Provider Blocks SMTP)' : 'Risky');
-    return { email, valid: !isRole, status, mxRecords };
+    return { email, valid: true, status: 'Active', reason: 'Provider Blocks SMTP', mxRecords };
   }
 
   // 7. Catch-all detection
   const catchAll = await isCatchAll(mxRecords[0], domain);
   if (catchAll) {
-    return {
-      email,
-      valid: true,
-      status: isRole ? 'Role-based (Catch-all)' : 'Catch-all',
-      mxRecords,
-    };
+    return { email, valid: false, status: 'Unknown', mxRecords };
   }
 
-  // 8. SMTP RCPT TO check (with port fallback 25 → 587 → 465)
+  // 8. SMTP RCPT TO with port fallback 25 → 587 → 465
   const smtpResult = await trySmtp(mxRecords[0], email);
 
   if (smtpResult === null) {
-    // All ports blocked — fall back to MX+SPF signal
-    const status = isRole ? 'Role-based' : (spf && dmarc ? 'Risky (Ports Blocked)' : 'Unknown');
-    return { email, valid: spf, status, mxRecords };
+    // All ports blocked — can't confirm
+    return { email, valid: false, status: 'Unknown', reason: 'Connection Failure', mxRecords };
   }
 
   const { code } = smtpResult;
 
   if (code === 250 || code === 251) {
-    return {
-      email,
-      valid: true,
-      status: isRole ? 'Role-based' : 'Valid',
-      mxRecords,
-    };
+    return { email, valid: true, status: 'Active', mxRecords };
   }
 
   if (code === 550 || code === 551 || code === 553 || code === 554) {
-    return { email, valid: false, status: 'Invalid (Mailbox Not Found)', mxRecords };
+    return { email, valid: false, status: 'Inactive', reason: `Rejected: ${code}`, mxRecords };
   }
 
   if (code === 421 || code === 450 || code === 451 || code === 452) {
-    // Temporary rejection — treat as risky, not invalid
-    return { email, valid: true, status: 'Risky (Temp Rejection)', mxRecords };
+    return { email, valid: false, status: 'Unknown', reason: `Temporary Failure: ${code}`, mxRecords };
   }
 
-  return { email, valid: false, status: `Unknown SMTP Response (${code})`, mxRecords };
+  return { email, valid: false, status: 'Unknown', reason: `SMTP Code: ${code}`, mxRecords };
 }

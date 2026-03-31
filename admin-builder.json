@@ -16,8 +16,6 @@
     "target": ["nsis"],
     "icon": "resources/icon.ico",
     "artifactName": "TomXtractor_49ja_Keygen_Setup.exe",
-    "certificateFile": "${env.CSC_LINK}",
-    "certificatePassword": "${env.CSC_KEY_PASSWORD}",
     "publisherName": "TomXtractor"
   },
   "nsis": {

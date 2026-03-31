@@ -1,6 +1,6 @@
 {
   "name": "tomxtractor-49ja",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "TomXtractor 49ja v1.0 - Professional Email Extraction Tool",
   "main": "dist/main/main.js",
   "scripts": {
