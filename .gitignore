@@ -41,3 +41,6 @@ yarn-error.log*
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Other projects in workspace
+whatsapp-bulk/
