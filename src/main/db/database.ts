@@ -10,20 +10,39 @@ const SAVE_THRESHOLD = 5; // Reduced from 50 to ensure settings are saved immedi
 let saveTimeout: NodeJS.Timeout | null = null;
 
 export async function initDatabase() {
-  const wasmPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')
-    : path.resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm');
+  console.log('[DB] Initializing TomXtractor database...');
+  
+  // Resolve WASM path: packaged → asar.unpacked, dev → project root node_modules
+  const wasmCandidates = app.isPackaged
+    ? [path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')]
+    : [
+        path.resolve(process.cwd(), 'node_modules/sql.js/dist/sql-wasm.wasm'),
+        path.resolve(__dirname, '../../../node_modules/sql.js/dist/sql-wasm.wasm'),
+        path.resolve(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm'),
+      ];
 
-  const SQL = await initSqlJs({
-    locateFile: (file: string) => (file === 'sql-wasm.wasm' ? wasmPath : file)
-  });
-  dbPath = path.join(app.getPath('userData'), 'tomxtractor.db');
+  const wasmPath = wasmCandidates.find(p => fs.existsSync(p)) || wasmCandidates[0];
+  console.log('[DB] Using WASM at:', wasmPath);
 
-  if (fs.existsSync(dbPath)) {
-    const buffer = fs.readFileSync(dbPath);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
+  try {
+    const SQL = await initSqlJs({
+      locateFile: (file: string) => (file === 'sql-wasm.wasm' ? wasmPath : file)
+    });
+    
+    dbPath = path.join(app.getPath('userData'), 'tomxtractor.db');
+    console.log('[DB] SQL.js initialized. DB Path:', dbPath);
+
+    if (fs.existsSync(dbPath)) {
+      const buffer = fs.readFileSync(dbPath);
+      db = new SQL.Database(buffer);
+      console.log('[DB] Existing database loaded.');
+    } else {
+      db = new SQL.Database();
+      console.log('[DB] New database created.');
+    }
+  } catch (err: any) {
+    console.error('[DB] Initialization failed:', err.message);
+    throw err;
   }
 
   createTables();

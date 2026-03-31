@@ -21,8 +21,11 @@
     "publisherName": "TomXtractor"
   },
   "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
+    "oneClick": true,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": false,
+    "runAfterFinish": true,
     "installerIcon": "resources/icon.ico",
     "uninstallerIcon": "resources/icon.ico"
   }

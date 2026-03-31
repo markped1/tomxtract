@@ -1,23 +1,24 @@
 {
   "name": "tomxtractor-49ja",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "TomXtractor 49ja v1.0 - Professional Email Extraction Tool",
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev": "set ELECTRON_RUN_AS_NODE=&& concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
     "dev:renderer": "vite",
-    "dev:main": "wait-on http://localhost:5173 && tsc -p tsconfig.main.json && electron .",
+    "dev:main": "wait-on http://localhost:5173 && tsc -p tsconfig.main.json && set ELECTRON_RUN_AS_NODE=&& electron .",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "build": "npm run build:renderer && npm run build:main",
     "build:admin:renderer": "vite build -c admin-vite.config.ts",
     "build:admin:main": "tsc -p tsconfig.admin.json",
     "build:admin": "npm run build:admin:renderer && npm run build:admin:main",
-    "package": "npm run build && electron-builder --win",
-    "package:admin": "npm run build:admin && electron-builder --win --config admin-builder.json",
+    "package": "set ELECTRON_RUN_AS_NODE=&& npm run build && electron-builder --win",
+    "package:admin": "set ELECTRON_RUN_AS_NODE=&& npm run build:admin && electron-builder --win --config admin-builder.json",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.101.0",
     "axios": "^1.13.6",
     "chromium": "^3.0.3",
     "crypto-js": "^4.2.0",
@@ -91,8 +92,11 @@
       "publisherName": "TomXtractor"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": false,
+      "runAfterFinish": true,
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
       "installerHeaderIcon": "resources/icon.ico"

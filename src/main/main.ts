@@ -36,27 +36,54 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(async () => {
-  await initDatabase();
-  registerIpcHandlers();
-  createWindow();
+const isLock = app.requestSingleInstanceLock();
 
-  // Check for updates automatically in production
-  if (app.isPackaged) {
-    autoUpdater.checkForUpdatesAndNotify();
-  }
-
-  // Window controls
-  ipcMain.on('window-minimize', () => mainWindow?.minimize());
-  ipcMain.on('window-maximize', () => {
-    if (mainWindow?.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow?.maximize();
+if (!isLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
-  ipcMain.on('window-close', () => mainWindow?.close());
-});
+
+  app.whenReady().then(async () => {
+    try {
+      await initDatabase();
+      console.log('Main Database initialized successfully');
+    } catch (dbError: any) {
+      console.error('CRITICAL: Failed to initialize main database:', dbError.message);
+    }
+    
+    registerIpcHandlers();
+    createWindow();
+
+    if (mainWindow) {
+      mainWindow.once('ready-to-show', () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+      });
+    }
+
+    // Check for updates automatically in production
+    if (app.isPackaged) {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
+
+    // Window controls
+    ipcMain.on('window-minimize', () => mainWindow?.minimize());
+    ipcMain.on('window-maximize', () => {
+      if (mainWindow?.isMaximized()) {
+        mainWindow.unmaximize();
+      } else {
+        mainWindow?.maximize();
+      }
+    });
+    ipcMain.on('window-close', () => mainWindow?.close());
+  });
+}
 
 app.on('window-all-closed', () => {
   forceSave();
@@ -70,6 +97,9 @@ app.on('before-quit', () => {
 app.on('activate', () => {
   if (mainWindow === null) {
     createWindow();
+  } else {
+    mainWindow.show();
+    mainWindow.focus();
   }
 });
 
